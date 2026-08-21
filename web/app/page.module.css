@@ -1,0 +1,110 @@
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  color: #1a1a1a;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+}
+
+.header p {
+  margin: 0;
+  color: #444;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field span {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.field textarea {
+  width: 100%;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  resize: vertical;
+  background: #fafafa;
+}
+
+.primary {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #1f6feb;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorBox {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: #ffe8e6;
+  color: #8a1f11;
+  white-space: pre-wrap;
+}
+
+.result {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+}
+
+.result pre {
+  overflow: auto;
+  padding: 0.75rem;
+  background: #f4f4f4;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.ok {
+  color: #0a7a32;
+}
+
+.bad {
+  color: #a1281a;
+}
+
+.events {
+  padding-left: 1.25rem;
+}
+
+.events li {
+  margin-bottom: 0.75rem;
+}

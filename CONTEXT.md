@@ -25,7 +25,8 @@
 ## 技术栈（已锁定）
 
 - `api/`：Python、Flask（薄 Blueprint + Pydantic）、uv、SQLite、SQLAlchemy
-- `web/`：最终用 Next（bootstrap 已完成占位）；联调变更再初始化
+- `web/`：Next.js 联调台（App Router；`/api-proxy` rewrite 到本地 Flask）
 - 流程：OpenSpec + GitHub Issues + 竖切 TDD（unified-dev-workflow）
 - 已归档：`openspec/changes/archive/2026-08-21-bootstrap`（API 探活骨架）
 - 已归档：`openspec/changes/archive/2026-08-21-graph-runner`（最小图执行 + run/events HTTP）
+- 进行中：`openspec/changes/minimal-web`（Web 联调页）
