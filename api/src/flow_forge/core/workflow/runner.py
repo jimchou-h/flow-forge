@@ -1,4 +1,10 @@
-"""Synchronous workflow runner."""
+"""同步工作流执行器。
+
+设计要点：
+- ``run(run_id 对应的 workflow)`` 在调用方线程内跑完整张图（今日同步；日后可改成入队调用同一入口）
+- 每步写入 ``WorkflowRunEvent``，客户端可用 run_id 轮询，不必依赖 SSE
+- 变量是简单 dict：运行 inputs 起步，template 结果写入 ``text`` 供下游使用
+"""
 
 from __future__ import annotations
 
@@ -11,10 +17,14 @@ from flow_forge.models import Workflow, WorkflowRun, WorkflowRunEvent
 
 
 class WorkflowRunner:
+    """按边顺序执行图，并持久化 run / events。"""
+
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
     def run(self, workflow_id: str, inputs: dict[str, Any] | None = None) -> WorkflowRun:
+        """同步执行一次工作流，返回终态 run（succeeded / failed）。"""
+
         inputs = inputs or {}
         with self._session_factory() as session:
             workflow = session.get(Workflow, workflow_id)
@@ -28,23 +38,27 @@ class WorkflowRunner:
                 inputs=inputs,
             )
             session.add(run)
+            # 先拿到 run.id，便于执行过程中写事件
             session.flush()
 
             try:
                 outputs = self._execute(session, run, graph, inputs)
                 run.status = "succeeded"
                 run.outputs = outputs
-            except Exception as exc:  # noqa: BLE001 — record failure on run
+            except Exception as exc:  # noqa: BLE001 — 节点失败记到 run，不让进程崩
                 run.status = "failed"
                 run.error = str(exc)
                 run.outputs = None
 
             session.commit()
             session.refresh(run)
+            # 会话关闭后仍可读字段
             session.expunge(run)
             return run
 
     def list_events(self, run_id: str) -> list[WorkflowRunEvent]:
+        """按 sequence 返回某次运行的全部事件。"""
+
         with self._session_factory() as session:
             events = (
                 session.query(WorkflowRunEvent)
@@ -57,6 +71,8 @@ class WorkflowRunner:
             return events
 
     def get_run(self, run_id: str) -> WorkflowRun | None:
+        """按 id 读取一次运行记录。"""
+
         with self._session_factory() as session:
             run = session.get(WorkflowRun, run_id)
             if run is None:
@@ -71,7 +87,10 @@ class WorkflowRunner:
         graph: WorkflowGraph,
         inputs: dict[str, Any],
     ) -> dict[str, Any]:
+        """从唯一的 start 出发，沿单后继边走到没有出边为止。"""
+
         nodes = {node.id: node for node in graph.nodes}
+        # adjacency[source] = [target, ...]；本阶段每个节点最多一个后继
         adjacency: dict[str, list[str]] = {node.id: [] for node in graph.nodes}
         for edge in graph.edges:
             adjacency[edge.source].append(edge.target)
@@ -95,14 +114,17 @@ class WorkflowRunner:
 
             try:
                 if node.data.type == "start":
+                    # start 只负责注入 inputs，无额外计算
                     pass
                 elif node.data.type == "template":
                     assert node.data.template is not None
+                    # format_map + _SafeDict：缺变量会 KeyError，落入 node_failed
                     rendered = node.data.template.format_map(_SafeDict(variables))
                     variables[f"{node.id}.text"] = rendered
                     variables["text"] = rendered
                     outputs = {"text": rendered}
                 elif node.data.type == "end":
+                    # end 收集当前对外输出（本阶段取 text）
                     outputs = {"text": variables.get("text")}
                 else:
                     raise ValueError(f"unsupported node type: {node.data.type}")
@@ -136,6 +158,8 @@ class WorkflowRunner:
         node_id: str | None,
         payload: dict[str, Any] | None = None,
     ) -> int:
+        """追加一条有序事件，返回新的 sequence。"""
+
         next_sequence = sequence + 1
         session.add(
             WorkflowRunEvent(
@@ -151,5 +175,7 @@ class WorkflowRunner:
 
 
 class _SafeDict(dict[str, Any]):
+    """供 str.format_map 使用：缺 key 时立刻失败，而不是静默留空。"""
+
     def __missing__(self, key: str) -> str:
         raise KeyError(key)

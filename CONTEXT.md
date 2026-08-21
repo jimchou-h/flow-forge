@@ -28,3 +28,4 @@
 - `web/`：最终用 Next（bootstrap 已完成占位）；联调变更再初始化
 - 流程：OpenSpec + GitHub Issues + 竖切 TDD（unified-dev-workflow）
 - 已归档：`openspec/changes/archive/2026-08-21-bootstrap`（API 探活骨架）
+- 已归档：`openspec/changes/archive/2026-08-21-graph-runner`（最小图执行 + run/events HTTP）

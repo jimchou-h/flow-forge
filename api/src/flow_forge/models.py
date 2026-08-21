@@ -1,4 +1,4 @@
-"""SQLAlchemy models."""
+"""SQLAlchemy 表模型：工作流定义、一次运行、逐步事件。"""
 
 from __future__ import annotations
 
@@ -12,17 +12,22 @@ from sqlalchemy.types import JSON
 
 
 class Base(DeclarativeBase):
-    pass
+    """所有 ORM 模型的基类。"""
 
 
 def new_id() -> str:
+    """生成字符串主键（UUID）。"""
+
     return str(uuid4())
 
 
 class Workflow(Base):
+    """已保存的工作流定义（图 JSON）。"""
+
     __tablename__ = "workflows"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    # 校验后的 graph 快照：{"nodes": [...], "edges": [...]}
     graph: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -30,6 +35,8 @@ class Workflow(Base):
 
 
 class WorkflowRun(Base):
+    """一次执行实例；status 典型为 pending / running / succeeded / failed。"""
+
     __tablename__ = "workflow_runs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -48,6 +55,8 @@ class WorkflowRun(Base):
 
 
 class WorkflowRunEvent(Base):
+    """单次运行内的有序事件（如 node_started / node_succeeded / node_failed）。"""
+
     __tablename__ = "workflow_run_events"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)

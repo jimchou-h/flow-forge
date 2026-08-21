@@ -1,4 +1,4 @@
-"""Workflow HTTP controllers."""
+"""工作流定义相关 HTTP（controllers 层：只做解析 / 状态码，业务交给 service）。"""
 
 from __future__ import annotations
 
@@ -16,6 +16,8 @@ def _service() -> WorkflowService:
 
 @bp.post("/workflows")
 def create_workflow():
+    """创建工作流。Body: ``{"graph": {...}}``；成功 201。"""
+
     body = request.get_json(silent=True) or {}
     graph = body.get("graph")
     if not isinstance(graph, dict):
@@ -31,6 +33,8 @@ def create_workflow():
 
 @bp.get("/workflows/<workflow_id>")
 def get_workflow(workflow_id: str):
+    """按 id 回读工作流图。"""
+
     workflow = _service().get(workflow_id)
     if workflow is None:
         return jsonify(error="workflow not found"), 404

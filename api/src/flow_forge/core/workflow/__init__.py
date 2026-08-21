@@ -1,1 +1,1 @@
-"""Workflow domain package."""
+"""工作流域包：图校验（graph）与同步执行（runner）。"""
