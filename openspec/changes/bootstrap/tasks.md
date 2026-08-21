@@ -15,4 +15,4 @@
 
 ## 4. 收尾验证
 
-- [ ] 4.1 按 README 本地跑通：`uv sync`、测试套件、手动或脚本请求 `/health`，确认与 specs 场景一致
+- [x] 4.1 按 README 本地跑通：`uv sync`、测试套件、手动或脚本请求 `/health`，确认与 specs 场景一致
