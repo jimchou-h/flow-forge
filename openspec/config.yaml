@@ -2,34 +2,12 @@ schema: spec-driven
 
 context: |
   Language: zh
-  All artifacts must be written in zh.
-  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  所有制品正文使用中文。
+  OpenSpec 结构标题与 SHALL/MUST 等规范性关键词保持英文。
 
-  Project: flow-forge — learning clone of Dify-style Workflow (not REPL agent).
-  Stack: api/ Flask+Pydantic+uv+SQLite; web/ Next later (placeholder only in bootstrap).
-  Layers: controllers → services → core (Dify-like names, subset only).
-  Graph: Dify draft field subset compatibility; first nodes Start/Template/End.
-  Runs: sync execution + persisted events; poll-ready run_id APIs; no auth/tenancy.
-  Process: unified-dev-workflow; blogs in docs/blog/; see CONTEXT.md.
-
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+  项目：flow-forge——对照 Dify 风格 Workflow 的学习向实现（不是 REPL Agent）。
+  技术栈：api/ 使用 Flask + Pydantic + uv + SQLite；web/ 后续再上 Next（bootstrap 仅占位）。
+  分层：controllers → services → core（对齐 Dify 命名，只建子集）。
+  图：与 Dify draft 字段子集兼容；首批节点 Start / Template / End。
+  运行：同步执行 + 事件落库；API 以 run_id 支持轮询；无账号/多租户。
+  流程：unified-dev-workflow；博文在 docs/blog/；详见 CONTEXT.md。

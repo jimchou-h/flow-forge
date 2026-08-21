@@ -10,7 +10,7 @@ Local drafts: `docs/blog/<slug>.md`
 
 | 文 | 本地 | CSDN id |
 |----|------|---------|
-| （bootstrap 后首篇待写） | | |
+| 01 对照 Dify 搭学习仓：先让后端能跑起来 | `ff-01-bootstrap-uv-flask.md` | |
 
 ## Python 门牌
 
