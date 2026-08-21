@@ -10,8 +10,8 @@
 
 ## 3. 文档与占位
 
-- [ ] 3.1 编写根 README（项目目的 + 安装/启动/`GET /health` 步骤）并目视确认可跟跑
-- [ ] 3.2 添加 `web/README.md` 占位（明确 Next 延后）与 `docs/blog/csdn-catalog.md` 骨架，确认路径存在
+- [x] 3.1 编写根 README（项目目的 + 安装/启动/`GET /health` 步骤）并目视确认可跟跑
+- [x] 3.2 添加 `web/README.md` 占位（明确 Next 延后）与 `docs/blog/csdn-catalog.md` 骨架，确认路径存在
 
 ## 4. 收尾验证
 
