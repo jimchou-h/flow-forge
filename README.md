@@ -32,8 +32,10 @@ curl http://127.0.0.1:5000/health
 
 期望响应：`{"status":"ok"}`。
 
+工作流（创建图 → 同步运行 → 查事件）见 [`api/README.md`](api/README.md)。
+
 ## 更多
 
 - 领域词汇：`CONTEXT.md`
 - Agent / issue 约定：`AGENTS.md`
-- 当前变更：`openspec/changes/bootstrap/`
+- 当前变更：`openspec/changes/graph-runner/`
