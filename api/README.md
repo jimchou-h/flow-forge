@@ -25,8 +25,9 @@ uv run flask --app flow_forge.app:create_app run --debug
 
 图约定（与 Dify draft **字段子集**接近）：
 
-- 节点：`id` + `data.type`（`start` / `template` / `end`）
+- 节点：`id` + `data.type`（`start` / `template` / `code` / `end`）
 - `template` 节点：`data.template` 使用 Python `str.format` 占位符，如 `{name}`
+- `code` 节点：`data.code` 为 Python 片段，**必须**赋值 `result = ...`；字符串结果会同步写入 `text` 供 `end` 输出
 - 边：`source` / `target`
 
 模板占位符来自运行 `inputs` 以及上游写入的变量（当前 slice 会把模板结果放进 `text`）。
@@ -59,6 +60,20 @@ curl -s http://127.0.0.1:5000/runs/RUN_ID/events
 ```
 
 > Windows CMD 使用 `^` 续行；PowerShell 可用 `` ` `` 或改成单行。Git Bash / macOS / Linux 把 `^` 换成 `\`。
+
+### Code 节点示例（start → code → end）
+
+> **安全说明**：本 slice 使用受控 `exec` 命名空间（禁用 `import` / `open` 等），仅供学习，**不是**生产级沙箱。
+
+```bash
+curl -s -X POST http://127.0.0.1:5000/workflows ^
+  -H "Content-Type: application/json" ^
+  -d "{\"graph\":{\"nodes\":[{\"id\":\"start_1\",\"data\":{\"type\":\"start\"}},{\"id\":\"code_1\",\"data\":{\"type\":\"code\",\"code\":\"result = name.upper()\"}},{\"id\":\"end_1\",\"data\":{\"type\":\"end\"}}],\"edges\":[{\"id\":\"e1\",\"source\":\"start_1\",\"target\":\"code_1\"},{\"id\":\"e2\",\"source\":\"code_1\",\"target\":\"end_1\"}]}}"
+```
+
+运行：`POST /workflows/<id>/runs`，body `{"inputs":{"name":"forge"}}` → 成功时 `outputs` 含 `{"text":"FORGE","result":"FORGE"}`。
+
+源码上限 4KB；静态拒绝 `import`、`open(`、`__import__` 等模式。
 
 ## 接口一览
 

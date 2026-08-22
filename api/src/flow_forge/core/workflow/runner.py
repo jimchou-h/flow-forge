@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy.orm import Session, sessionmaker
 
 from flow_forge.core.workflow.graph import WorkflowGraph, validate_workflow_graph
+from flow_forge.core.workflow.nodes.code import execute_code
 from flow_forge.models import Workflow, WorkflowRun, WorkflowRunEvent
 
 
@@ -123,9 +124,23 @@ class WorkflowRunner:
                     variables[f"{node.id}.text"] = rendered
                     variables["text"] = rendered
                     outputs = {"text": rendered}
+                elif node.data.type == "code":
+                    assert node.data.code is not None
+                    code_result = execute_code(node.data.code, variables)
+                    variables["result"] = code_result
+                    variables[f"{node.id}.result"] = code_result
+                    if isinstance(code_result, str):
+                        variables["text"] = code_result
+                        outputs = {"text": code_result, "result": code_result}
+                    else:
+                        outputs = {"result": code_result}
                 elif node.data.type == "end":
-                    # end 收集当前对外输出（本阶段取 text）
-                    outputs = {"text": variables.get("text")}
+                    if "result" in variables:
+                        outputs = {"result": variables["result"]}
+                        if "text" in variables:
+                            outputs["text"] = variables["text"]
+                    else:
+                        outputs = {"text": variables.get("text")}
                 else:
                     raise ValueError(f"unsupported node type: {node.data.type}")
             except Exception as exc:

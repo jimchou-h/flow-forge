@@ -1,7 +1,7 @@
 """工作流图结构（对照 Dify draft 的字段子集）。
 
 约定：
-- 节点用 ``id`` + ``data.type`` 区分类型（本阶段仅 start / template / end）
+- 节点用 ``id`` + ``data.type`` 区分类型（start / template / code / end）
 - 边用 ``source`` / ``target`` 指向节点 id
 不追求能直接导入完整 Dify 导出文件，只锁本仓用到的字段。
 """
@@ -12,21 +12,25 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-# 本阶段允许的节点类型；扩展 LLM/Code 时在此追加
-SupportedNodeType = Literal["start", "template", "end"]
+from flow_forge.core.workflow.nodes.code import MAX_CODE_LENGTH, validate_code_source
+
+# 本阶段允许的节点类型
+SupportedNodeType = Literal["start", "template", "code", "end"]
 
 
 class NodeData(BaseModel):
     """节点业务配置，放在 graph node 的 data 字段里（贴近 Dify 习惯）。"""
 
     type: SupportedNodeType
-    # 仅 template 节点需要；其它类型可省略
     template: str | None = None
+    code: str | None = None
 
     @model_validator(mode="after")
-    def template_required_for_template_node(self) -> NodeData:
+    def required_fields_for_node_type(self) -> NodeData:
         if self.type == "template" and not self.template:
             raise ValueError("template node requires data.template")
+        if self.type == "code":
+            validate_code_source(self.code or "")
         return self
 
 

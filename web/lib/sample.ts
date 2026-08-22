@@ -17,3 +17,21 @@ export const SAMPLE_GRAPH: WorkflowGraph = {
 };
 
 export const SAMPLE_INPUTS = { name: "Forge" };
+
+/** start → code → end：把 name 转大写 */
+export const SAMPLE_CODE_GRAPH: WorkflowGraph = {
+  nodes: [
+    { id: "start_1", data: { type: "start" } },
+    {
+      id: "code_1",
+      data: { type: "code", code: "result = name.upper()" },
+    },
+    { id: "end_1", data: { type: "end" } },
+  ],
+  edges: [
+    { id: "e1", source: "start_1", target: "code_1" },
+    { id: "e2", source: "code_1", target: "end_1" },
+  ],
+};
+
+export const SAMPLE_CODE_INPUTS = { name: "forge" };
