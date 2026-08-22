@@ -21,7 +21,7 @@
 - 多租户 / 账号体系
 - Celery / 生产级异步队列（先轮询，再 SSE）
 - 以 REPL Agent 为主线的另一类产品形态
-- 拖拽画布与 LLM 节点（Code 之后再考虑）
+- 拖拽画布（LLM 之后再考虑）
 
 ## 技术栈（已锁定）
 
@@ -31,4 +31,5 @@
 - 已归档：`openspec/changes/archive/2026-08-21-bootstrap`（API 探活骨架）
 - 已归档：`openspec/changes/archive/2026-08-21-graph-runner`（最小图执行 + run/events HTTP）
 - 已归档：`openspec/changes/archive/2026-08-22-minimal-web`（Web 联调页）
-- 进行中：`openspec/changes/code-node`（Code 节点：受控 exec + `result` 约定）
+- 已归档：`openspec/changes/archive/2026-08-22-code-node`（Code 节点：受控 exec + `result` 约定）
+- 进行中：`openspec/changes/llm-node`（LLM 节点：prompt 渲染 + 可注入 provider）
