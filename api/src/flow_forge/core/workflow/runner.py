@@ -14,14 +14,22 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from flow_forge.core.workflow.graph import WorkflowGraph, validate_workflow_graph
 from flow_forge.core.workflow.nodes.code import execute_code
+from flow_forge.core.workflow.nodes.llm import execute_llm
+from flow_forge.core.workflow.providers.base import LlmProvider
+from flow_forge.core.workflow.providers.stub import StubLlmProvider
 from flow_forge.models import Workflow, WorkflowRun, WorkflowRunEvent
 
 
 class WorkflowRunner:
     """按边顺序执行图，并持久化 run / events。"""
 
-    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        llm_provider: LlmProvider | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._llm_provider = llm_provider or StubLlmProvider()
 
     def run(self, workflow_id: str, inputs: dict[str, Any] | None = None) -> WorkflowRun:
         """同步执行一次工作流，返回终态 run（succeeded / failed）。"""
@@ -134,6 +142,12 @@ class WorkflowRunner:
                         outputs = {"text": code_result, "result": code_result}
                     else:
                         outputs = {"result": code_result}
+                elif node.data.type == "llm":
+                    assert node.data.prompt is not None
+                    llm_text = execute_llm(node.data.prompt, variables, self._llm_provider)
+                    variables[f"{node.id}.text"] = llm_text
+                    variables["text"] = llm_text
+                    outputs = {"text": llm_text}
                 elif node.data.type == "end":
                     if "result" in variables:
                         outputs = {"result": variables["result"]}

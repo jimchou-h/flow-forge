@@ -30,3 +30,17 @@ def sample_code_graph(*, code: str = "result = name.upper()") -> dict:
             {"id": "e2", "source": "code_1", "target": "end_1"},
         ],
     }
+
+
+def sample_llm_graph(*, prompt: str = "Say hello to {name}") -> dict:
+    return {
+        "nodes": [
+            {"id": "start_1", "data": {"type": "start"}},
+            {"id": "llm_1", "data": {"type": "llm", "prompt": prompt}},
+            {"id": "end_1", "data": {"type": "end"}},
+        ],
+        "edges": [
+            {"id": "e1", "source": "start_1", "target": "llm_1"},
+            {"id": "e2", "source": "llm_1", "target": "end_1"},
+        ],
+    }

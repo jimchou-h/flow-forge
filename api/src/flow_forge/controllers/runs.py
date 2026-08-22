@@ -10,7 +10,10 @@ bp = Blueprint("runs", __name__)
 
 
 def _runner() -> WorkflowRunner:
-    return WorkflowRunner(current_app.extensions["db_session_factory"])
+    return WorkflowRunner(
+        current_app.extensions["db_session_factory"],
+        llm_provider=current_app.extensions["llm_provider"],
+    )
 
 
 @bp.post("/workflows/<workflow_id>/runs")

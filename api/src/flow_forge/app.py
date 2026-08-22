@@ -8,6 +8,7 @@ from flask import Flask
 from flow_forge.controllers.health import bp as health_bp
 from flow_forge.controllers.runs import bp as runs_bp
 from flow_forge.controllers.workflows import bp as workflows_bp
+from flow_forge.core.workflow.providers.factory import create_llm_provider_from_env
 from flow_forge.db import check_sqlite_connection, get_engine, init_db
 
 
@@ -21,6 +22,7 @@ def create_app(database_url: str | None = None) -> Flask:
     # 供 controllers / services 取出同一套 Session 工厂
     app.extensions["db_engine"] = engine
     app.extensions["db_session_factory"] = session_factory
+    app.extensions["llm_provider"] = create_llm_provider_from_env()
     app.register_blueprint(health_bp)
     app.register_blueprint(workflows_bp)
     app.register_blueprint(runs_bp)

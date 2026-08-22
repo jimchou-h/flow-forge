@@ -8,7 +8,8 @@
 |------|------|
 | Workflow（工作流） | 由节点与边组成的可执行图；本仓北星 |
 | Graph / draft（图定义） | 工作流定义；关键字段与 Dify draft **子集兼容** |
-| Node（节点） | 图上的一步；含 Start / Template / Code / End |
+| Node（节点） | 图上的一步；含 Start / Template / Code / LLM / End |
+| LLM 节点 | 用 prompt 模板 + LlmProvider 生成文本；默认 stub，可选 OpenAI 兼容 HTTP |
 | Template 节点 | 用上游变量做字符串模板渲染的确定性节点 |
 | Run（运行） | 一次工作流执行实例；有 `run_id` |
 | Event（事件） | 单次运行内的逐步状态记录（节点开始/成功/失败等），供轮询 |

@@ -35,3 +35,21 @@ export const SAMPLE_CODE_GRAPH: WorkflowGraph = {
 };
 
 export const SAMPLE_CODE_INPUTS = { name: "forge" };
+
+/** start → llm → end：stub 下输出 Echo: Say hello to … */
+export const SAMPLE_LLM_GRAPH: WorkflowGraph = {
+  nodes: [
+    { id: "start_1", data: { type: "start" } },
+    {
+      id: "llm_1",
+      data: { type: "llm", prompt: "Say hello to {name}" },
+    },
+    { id: "end_1", data: { type: "end" } },
+  ],
+  edges: [
+    { id: "e1", source: "start_1", target: "llm_1" },
+    { id: "e2", source: "llm_1", target: "end_1" },
+  ],
+};
+
+export const SAMPLE_LLM_INPUTS = { name: "Forge" };

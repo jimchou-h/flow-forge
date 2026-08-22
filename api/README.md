@@ -25,9 +25,10 @@ uv run flask --app flow_forge.app:create_app run --debug
 
 图约定（与 Dify draft **字段子集**接近）：
 
-- 节点：`id` + `data.type`（`start` / `template` / `code` / `end`）
+- 节点：`id` + `data.type`（`start` / `template` / `code` / `llm` / `end`）
 - `template` 节点：`data.template` 使用 Python `str.format` 占位符，如 `{name}`
 - `code` 节点：`data.code` 为 Python 片段，**必须**赋值 `result = ...`；字符串结果会同步写入 `text` 供 `end` 输出
+- `llm` 节点：`data.prompt` 同样支持 `{name}` 占位符；默认 **Stub** provider（`Echo: ...`），无需 API Key
 - 边：`source` / `target`
 
 模板占位符来自运行 `inputs` 以及上游写入的变量（当前 slice 会把模板结果放进 `text`）。
@@ -74,6 +75,22 @@ curl -s -X POST http://127.0.0.1:5000/workflows ^
 运行：`POST /workflows/<id>/runs`，body `{"inputs":{"name":"forge"}}` → 成功时 `outputs` 含 `{"text":"FORGE","result":"FORGE"}`。
 
 源码上限 4KB；静态拒绝 `import`、`open(`、`__import__` 等模式。
+
+### LLM 节点示例（start → llm → end）
+
+> **默认行为**：未配置环境变量时使用 `StubLlmProvider`，输出形如 `Echo: <渲染后的 prompt>`。  
+> 接真实模型时设置（三者缺一不可）：
+> - `FLOW_FORGE_LLM_BASE_URL`（如 `https://api.openai.com/v1`）
+> - `FLOW_FORGE_LLM_API_KEY`
+> - `FLOW_FORGE_LLM_MODEL`
+
+```bash
+curl -s -X POST http://127.0.0.1:5000/workflows ^
+  -H "Content-Type: application/json" ^
+  -d "{\"graph\":{\"nodes\":[{\"id\":\"start_1\",\"data\":{\"type\":\"start\"}},{\"id\":\"llm_1\",\"data\":{\"type\":\"llm\",\"prompt\":\"Say hello to {name}\"}},{\"id\":\"end_1\",\"data\":{\"type\":\"end\"}}],\"edges\":[{\"id\":\"e1\",\"source\":\"start_1\",\"target\":\"llm_1\"},{\"id\":\"e2\",\"source\":\"llm_1\",\"target\":\"end_1\"}]}}"
+```
+
+运行：`POST /workflows/<id>/runs`，body `{"inputs":{"name":"Forge"}}` → stub 成功时 `outputs` 含 `{"text":"Echo: Say hello to Forge"}`。
 
 ## 接口一览
 

@@ -17,6 +17,6 @@ def test_create_and_get_workflow(client) -> None:
 
 def test_create_rejects_unknown_node_type(client) -> None:
     graph = sample_graph()
-    graph["nodes"][1]["data"]["type"] = "llm"
+    graph["nodes"][1]["data"]["type"] = "tool"
     response = client.post("/workflows", json={"graph": graph})
     assert response.status_code == 400
