@@ -11,6 +11,7 @@
 | Node（节点） | 图上的一步；含 Start / Template / Code / LLM / If-Else / End |
 | LLM 节点 | 用 prompt 模板 + LlmProvider 生成文本；默认 stub，可选 OpenAI 兼容 HTTP |
 | If/Else 节点 | 按条件互斥选择 true/false 出边（对照 Dify If/Else 学习子集；非并行） |
+| Parallel / fan-out / join | 多出边同时调度各支路后在汇合点等待；本仓学习向用**同步顺序**模拟 |
 | Template 节点 | 用上游变量做字符串模板渲染的确定性节点 |
 | Run（运行） | 一次工作流执行实例；有 `run_id` |
 | Event（事件） | 单次运行内的逐步状态记录（节点开始/成功/失败等），供轮询 |
@@ -23,7 +24,7 @@
 - 多租户 / 账号体系
 - Celery / 生产级异步队列（先轮询，再 SSE）
 - 以 REPL Agent 为主线的另一类产品形态
-- 并行 fan-out/join、多租户之外的画布级产品化（If/Else 之后再考虑拖拽画布）
+- 真多线程并行、拖拽画布（并行语义之后再考虑画布）
 
 ## 技术栈（已锁定）
 
@@ -35,4 +36,5 @@
 - 已归档：`openspec/changes/archive/2026-08-22-minimal-web`（Web 联调页）
 - 已归档：`openspec/changes/archive/2026-08-22-code-node`（Code 节点：受控 exec + `result` 约定）
 - 已归档：`openspec/changes/archive/2026-08-23-llm-node`（LLM 节点：prompt + Stub/OpenAI Provider）
-- 进行中：`openspec/changes/if-else-node`（互斥条件分支）
+- 已归档：`openspec/changes/archive/2026-08-23-if-else-node`（If/Else 互斥分支）
+- 进行中：`openspec/changes/parallel-branch`（fan-out / join，同步顺序模拟并行）

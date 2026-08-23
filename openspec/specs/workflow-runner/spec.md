@@ -1,12 +1,12 @@
 # workflow-runner Specification
 
 ## Purpose
-约定同步工作流执行：节点间变量传递、模板渲染、code 执行、llm 生成，以及可持久化的 run 与逐步事件，便于日后升级为按 run_id 轮询而不改事件模型。
+约定同步工作流执行：节点间变量传递、模板渲染、code 执行、llm 生成、if-else 互斥分支，以及可持久化的 run 与逐步事件。
 
 ## Requirements
 
 ### Requirement: 同步运行跑完整张图
-系统 SHALL 在启动运行的同一请求内同步执行整张图，按边的顺序从 start 走到 end（路径上可含 template、code 与 llm），并 MUST 以终态结束（succeeded 或 failed）。
+系统 SHALL 在启动运行的同一请求内同步执行整张图，按边从 start 走到 end（路径上可含 template、code、llm、if-else），并 MUST 以终态结束（succeeded 或 failed）。
 
 #### Scenario: start-template-end 成功
 - **WHEN** 对一份合法的 start → template → end 图，在提供所需输入后启动运行
@@ -19,6 +19,10 @@
 #### Scenario: start-llm-end 成功
 - **WHEN** 对一份合法的 start → llm → end 图提供所需输入并启动运行（使用 stub 或已配置 provider）
 - **THEN** 该 run MUST 达到 succeeded，并暴露 llm 生成的 `text` 作为最终输出
+
+#### Scenario: if-else 真支成功
+- **WHEN** 图含 if-else，条件为真，true 支可执行到 end
+- **THEN** 该 run MUST 达到 succeeded，且仅 true 支上的中间节点产生成功事件
 
 ### Requirement: Template 节点按变量渲染
 template 节点 MUST 使用上游输出 / 运行输入中的变量，渲染其配置的模板字符串，并将结果写入运行变量空间供下游节点使用。
