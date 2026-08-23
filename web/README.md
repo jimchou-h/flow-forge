@@ -1,6 +1,6 @@
 # web/ — Flow Forge 联调前端
 
-Next.js（App Router + TypeScript）极简控制台：编辑图 JSON → 运行 → 看 events。  
+Next.js（App Router + TypeScript）联调台：**拖拽画布**编排工作流 → 运行 → 看 events。  
 浏览器请求走同源 `/api-proxy/*`，由 Next rewrite 转发到本地 Flask，避免 CORS。
 
 ## 要求
@@ -38,25 +38,31 @@ $env:FLOW_FORGE_API_ORIGIN="http://127.0.0.1:5000"
 pnpm dev
 ```
 
-## 联调页用法
+## 联调页用法（画布）
 
-1. 左侧默认已预填 `start → template → end` 示例图（与 `api` 测试夹具同构）
-2. 右侧 `inputs` 默认 `{"name":"Forge"}`
-3. 点「运行」：内部依次 `POST /workflows` → `POST .../runs` → `GET .../events`
-4. 下方查看 `status` / `outputs` / 事件列表；故意删掉 `name` 可观察失败路径
+1. 中间画布默认加载 `start → template → end` 示例（可拖拽节点、从锚点拉线）
+2. 左侧「添加节点」可加 `template` / `code` / `llm` / `if-else` / `end`
+3. 选中节点后在右侧编辑 `data`（template / code / prompt / condition）
+4. `if-else` 请从右侧 **true / false** 锚点分别连出两条边
+5. 左侧编辑 `inputs` JSON，点「从画布运行」：`POST /workflows` → `POST .../runs` → `GET .../events`
+6. 可选「显示 JSON」查看/粘贴图载荷，并用「从 JSON 加载到画布」显式同步
 
 ## 构建检查
 
 ```bash
 cd web
 pnpm build
+pnpm exec tsx lib/graph-codec.smoke.ts
 ```
 
 ## 目录要点
 
 | 路径 | 作用 |
 |------|------|
-| `app/page.tsx` | 联调页（客户端组件） |
+| `app/page.tsx` | 联调页入口 |
+| `components/workflow-editor.tsx` | 画布 + 面板 + 运行 |
+| `components/workflow-node.tsx` | 自定义节点（含 if-else handles） |
+| `lib/graph-codec.ts` | 画布 ↔ `WorkflowGraph` 编解码 |
 | `lib/api.ts` | `/api-proxy` fetch 封装 |
 | `lib/sample.ts` | 示例图与 inputs |
 | `next.config.ts` | rewrite 代理到 Flask |

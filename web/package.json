@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@xyflow/react": "^12.11.3",
     "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -19,6 +20,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   },
   "packageManager": "pnpm@10.28.2"
