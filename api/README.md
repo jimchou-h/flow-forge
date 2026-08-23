@@ -29,8 +29,9 @@ uv run flask --app flow_forge.app:create_app run --debug
 - `template` 节点：`data.template` 使用 Python `str.format` 占位符，如 `{name}`
 - `code` 节点：`data.code` 为 Python 片段，**必须**赋值 `result = ...`；字符串结果会同步写入 `text` 供 `end` 输出
 - `llm` 节点：`data.prompt` 同样支持 `{name}` 占位符；默认 **Stub** provider（`Echo: ...`），无需 API Key
-- `if-else` 节点：`data.condition` 必须赋值 `result = <bool>`；出边带 `source_handle`: `true` / `false`（**互斥**选一支，不是并行）
-- 边：`source` / `target`；if-else 出边另需 `source_handle`
+- `if-else` 节点：`data.condition` 必须赋值 `result = <bool>`；出边带 `source_handle`: `true` / `false`（**互斥**选一支）
+- **并行 fan-out**：非 if-else 节点可有多条**不带** `source_handle` 的出边；Runner **按边声明顺序同步执行**各支（学习向模拟，非多线程），入度 >1 的节点 join 后只跑一次
+- 边：`source` / `target`；仅 if-else 出边使用 `source_handle`
 
 模板占位符来自运行 `inputs` 以及上游写入的变量（当前 slice 会把模板结果放进 `text`）。
 
@@ -103,6 +104,14 @@ curl -s -X POST http://127.0.0.1:5000/workflows ^
 `                      └─(false)→ … → end`
 
 运行：`{"inputs":{"score":80}}` → 走 true 支；`{"score":40}` → 走 false 支。
+
+### 并行 fan-out / join（顺序模拟）
+
+> **不是真并行**：多出边按 `edges` 数组顺序依次执行；汇合点等全部前驱成功后再跑一次。  
+> 全局 `text` 可能被后执行的支路覆盖；汇合后请读 `{node_id}.text`（成功时 `outputs.branches` 会汇总）。
+
+典型：`start ─┬→ tpl_a →┐`  
+`        └→ tpl_b →┴→ end`
 
 ## 接口一览
 

@@ -79,3 +79,28 @@ def sample_if_else_graph(*, condition: str = "result = score >= 60") -> dict:
             {"id": "e4", "source": "tpl_false", "target": "end_1"},
         ],
     }
+
+
+def sample_parallel_graph() -> dict:
+    """start fan-out to two templates, then join at end."""
+
+    return {
+        "nodes": [
+            {"id": "start_1", "data": {"type": "start"}},
+            {
+                "id": "tpl_a",
+                "data": {"type": "template", "template": "A:{name}"},
+            },
+            {
+                "id": "tpl_b",
+                "data": {"type": "template", "template": "B:{name}"},
+            },
+            {"id": "end_1", "data": {"type": "end"}},
+        ],
+        "edges": [
+            {"id": "e1", "source": "start_1", "target": "tpl_a"},
+            {"id": "e2", "source": "start_1", "target": "tpl_b"},
+            {"id": "e3", "source": "tpl_a", "target": "end_1"},
+            {"id": "e4", "source": "tpl_b", "target": "end_1"},
+        ],
+    }

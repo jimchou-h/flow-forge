@@ -7,7 +7,13 @@ import pytest
 from flow_forge.app import create_app
 from flow_forge.core.workflow.runner import WorkflowRunner
 from flow_forge.services.workflow_service import WorkflowService
-from sample_data import sample_code_graph, sample_graph, sample_if_else_graph, sample_llm_graph
+from sample_data import (
+    sample_code_graph,
+    sample_graph,
+    sample_if_else_graph,
+    sample_llm_graph,
+    sample_parallel_graph,
+)
 
 
 @pytest.fixture
@@ -153,3 +159,38 @@ def test_runner_if_else_non_bool_fails(session_factory) -> None:
     assert run.error
     events = runner.list_events(run.id)
     assert any(event.event_type == "node_failed" for event in events)
+
+
+def test_runner_parallel_fan_out_join_succeeds(session_factory) -> None:
+    service = WorkflowService(session_factory)
+    workflow = service.create(sample_parallel_graph())
+    runner = WorkflowRunner(session_factory)
+
+    run = runner.run(workflow.id, inputs={"name": "Forge"})
+
+    assert run.status == "succeeded"
+    assert run.outputs is not None
+    assert run.outputs["branches"] == {"tpl_a": "A:Forge", "tpl_b": "B:Forge"}
+    succeeded = [e.node_id for e in runner.list_events(run.id) if e.event_type == "node_succeeded"]
+    assert succeeded.count("end_1") == 1
+    assert "tpl_a" in succeeded
+    assert "tpl_b" in succeeded
+    # 顺序模拟：按 edges 声明顺序先 a 后 b
+    assert succeeded.index("tpl_a") < succeeded.index("tpl_b")
+    assert succeeded.index("tpl_b") < succeeded.index("end_1")
+
+
+def test_runner_parallel_one_branch_fails(session_factory) -> None:
+    graph = sample_parallel_graph()
+    # tpl_b 引用缺失变量
+    graph["nodes"][2]["data"]["template"] = "B:{missing}"
+    service = WorkflowService(session_factory)
+    workflow = service.create(graph)
+    runner = WorkflowRunner(session_factory)
+
+    run = runner.run(workflow.id, inputs={"name": "Forge"})
+
+    assert run.status == "failed"
+    assert run.error
+    events = runner.list_events(run.id)
+    assert any(event.event_type == "node_failed" and event.node_id == "tpl_b" for event in events)

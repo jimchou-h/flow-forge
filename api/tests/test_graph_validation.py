@@ -7,7 +7,13 @@ from flow_forge.core.workflow.graph import validate_workflow_graph
 from flow_forge.core.workflow.nodes.code import MAX_CODE_LENGTH
 from flow_forge.core.workflow.nodes.if_else import MAX_CONDITION_LENGTH
 from flow_forge.core.workflow.nodes.llm import MAX_PROMPT_LENGTH
-from sample_data import sample_code_graph, sample_graph, sample_if_else_graph, sample_llm_graph
+from sample_data import (
+    sample_code_graph,
+    sample_graph,
+    sample_if_else_graph,
+    sample_llm_graph,
+    sample_parallel_graph,
+)
 
 
 def test_valid_start_template_end_graph_parses() -> None:
@@ -103,5 +109,19 @@ def test_edge_missing_target_is_rejected() -> None:
 def test_unknown_node_type_is_rejected() -> None:
     payload = sample_graph()
     payload["nodes"][1]["data"]["type"] = "tool"
+    with pytest.raises(ValidationError):
+        validate_workflow_graph(payload)
+
+
+def test_valid_parallel_graph_parses() -> None:
+    graph = validate_workflow_graph(sample_parallel_graph())
+    start_outs = [edge for edge in graph.edges if edge.source == "start_1"]
+    assert len(start_outs) == 2
+    assert all(edge.source_handle is None for edge in start_outs)
+
+
+def test_non_if_else_out_edge_with_handle_is_rejected() -> None:
+    payload = sample_parallel_graph()
+    payload["edges"][0]["source_handle"] = "true"
     with pytest.raises(ValidationError):
         validate_workflow_graph(payload)

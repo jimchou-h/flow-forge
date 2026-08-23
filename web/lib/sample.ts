@@ -76,3 +76,21 @@ export const SAMPLE_IF_ELSE_GRAPH: WorkflowGraph = {
 };
 
 export const SAMPLE_IF_ELSE_INPUTS = { score: 80 };
+
+/** start fan-out → two templates → join end */
+export const SAMPLE_PARALLEL_GRAPH: WorkflowGraph = {
+  nodes: [
+    { id: "start_1", data: { type: "start" } },
+    { id: "tpl_a", data: { type: "template", template: "A:{name}" } },
+    { id: "tpl_b", data: { type: "template", template: "B:{name}" } },
+    { id: "end_1", data: { type: "end" } },
+  ],
+  edges: [
+    { id: "e1", source: "start_1", target: "tpl_a" },
+    { id: "e2", source: "start_1", target: "tpl_b" },
+    { id: "e3", source: "tpl_a", target: "end_1" },
+    { id: "e4", source: "tpl_b", target: "end_1" },
+  ],
+};
+
+export const SAMPLE_PARALLEL_INPUTS = { name: "Forge" };

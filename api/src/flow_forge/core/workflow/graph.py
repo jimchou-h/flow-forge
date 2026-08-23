@@ -94,6 +94,16 @@ class WorkflowGraph(BaseModel):
                 )
         return self
 
+    @model_validator(mode="after")
+    def source_handle_only_on_if_else(self) -> WorkflowGraph:
+        node_type = {node.id: node.data.type for node in self.nodes}
+        for edge in self.edges:
+            if edge.source_handle is None:
+                continue
+            if node_type.get(edge.source) != "if-else":
+                raise ValueError("source_handle is only allowed on if-else out-edges")
+        return self
+
 
 def validate_workflow_graph(payload: dict[str, Any]) -> WorkflowGraph:
     """把原始 dict 校验成 WorkflowGraph；失败时抛出 Pydantic ValidationError。"""
