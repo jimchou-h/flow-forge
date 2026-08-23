@@ -68,4 +68,4 @@ pnpm dev
 
 - 领域词汇：`CONTEXT.md`
 - Agent / issue 约定：`AGENTS.md`
-- 当前变更：`openspec/changes/llm-node/`
+- 当前变更：`openspec/changes/if-else-node/`
