@@ -1,8 +1,10 @@
-"""运行相关 HTTP：启动同步 run，并按 run_id 查询详情 / 事件。"""
+"""运行相关 HTTP：同步 JSON run、SSE 流式 run，以及按 run_id 查询。"""
 
 from __future__ import annotations
 
-from flask import Blueprint, current_app, jsonify, request
+import json
+
+from flask import Blueprint, Response, current_app, jsonify, request, stream_with_context
 
 from flow_forge.core.workflow.runner import WorkflowRunner
 
@@ -31,7 +33,6 @@ def start_run(workflow_id: str):
     try:
         run = _runner().run(workflow_id, inputs=inputs)
     except ValueError as exc:
-        # 目前主要是 workflow 不存在
         return jsonify(error=str(exc)), 404
     return (
         jsonify(
@@ -43,6 +44,46 @@ def start_run(workflow_id: str):
             error=run.error,
         ),
         201,
+    )
+
+
+@bp.post("/workflows/<workflow_id>/runs/stream")
+def start_run_stream(workflow_id: str):
+    """SSE 流式运行：边执行边推送节点事件，最后 ``run_finished``。"""
+
+    body = request.get_json(silent=True) or {}
+    inputs = body.get("inputs") or {}
+    if not isinstance(inputs, dict):
+        return jsonify(error="inputs must be an object"), 400
+
+    runner = _runner()
+    # 先确认 workflow 存在，避免 SSE 里才 404
+    try:
+        # 轻量探测：跑空迭代前先 get — 用 session 读一次
+        with current_app.extensions["db_session_factory"]() as session:
+            from flow_forge.models import Workflow
+
+            if session.get(Workflow, workflow_id) is None:
+                return jsonify(error=f"workflow not found: {workflow_id}"), 404
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=str(exc)), 500
+
+    @stream_with_context
+    def generate():
+        try:
+            for message in runner.iter_run(workflow_id, inputs=inputs):
+                yield f"data: {json.dumps(message, ensure_ascii=False)}\n\n"
+        except ValueError as exc:
+            err = {"type": "run_finished", "status": "failed", "error": str(exc)}
+            yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n"
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

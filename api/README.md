@@ -120,6 +120,14 @@ curl -s -X POST http://127.0.0.1:5000/workflows ^
 | GET | `/health` | 探活 |
 | POST | `/workflows` | 创建工作流（body: `{ "graph": ... }`） |
 | GET | `/workflows/<id>` | 读取工作流 |
-| POST | `/workflows/<id>/runs` | 同步启动运行（body: `{ "inputs": {...} }`） |
+| POST | `/workflows/<id>/runs` | 同步启动运行（body: `{ "inputs": {...} }`），JSON 终态 |
+| POST | `/workflows/<id>/runs/stream` | 同上，但以 **SSE**（`text/event-stream`）边跑边推节点事件，最后 `run_finished` |
 | GET | `/runs/<run_id>` | 运行详情 |
-| GET | `/runs/<run_id>/events` | 逐步事件（可轮询） |
+| GET | `/runs/<run_id>/events` | 逐步事件（可轮询；与 SSE 落库同一套） |
+
+### SSE 与 JSON 运行的差异
+
+- **JSON** `POST .../runs`：等整图跑完再返回一次 `WorkflowRun`；可用 `GET .../events` 拉全量事件。
+- **SSE** `POST .../runs/stream`：同一执行路径，但每落库一条节点事件就 `data: {...}\n\n` 推送；流末尾一条 `type: run_finished`（含 `run_id` / `status` / `outputs` / `error`）。
+- 客户端须用 `fetch` + `ReadableStream`（POST body 带 `inputs`）；浏览器 `EventSource` 只支持 GET，不适用。
+- 代理（nginx / Next rewrite）应对该路径关闭缓冲（响应头已带 `Cache-Control: no-cache`、`X-Accel-Buffering: no`）。

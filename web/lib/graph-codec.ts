@@ -11,6 +11,8 @@ export type WorkflowNodeData = {
   prompt?: string;
   condition?: string;
   label?: string;
+  /** 运行态高亮：仅前端，不进入 API graph */
+  runStatus?: "running" | "succeeded" | "failed";
 };
 
 export type WorkflowFlowNode = Node<WorkflowNodeData>;

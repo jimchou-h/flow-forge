@@ -11,7 +11,17 @@ export function WorkflowNode({ data, selected }: NodeProps<WorkflowFlowNode>) {
   const isIfElse = data.type === "if-else";
 
   return (
-    <div className={`${styles.node} ${selected ? styles.selected : ""}`}>
+    <div
+      className={`${styles.node} ${selected ? styles.selected : ""} ${
+        data.runStatus === "running"
+          ? styles.running
+          : data.runStatus === "succeeded"
+            ? styles.succeeded
+            : data.runStatus === "failed"
+              ? styles.failed
+              : ""
+      }`}
+    >
       {!isStart ? <Handle type="target" position={Position.Left} className={styles.handle} /> : null}
       <div className={styles.type}>{data.type}</div>
       <div className={styles.idHint}>{summarize(data)}</div>

@@ -1,14 +1,16 @@
 """同步工作流执行器。
 
 设计要点：
-- 同步跑完整张图；每步写 ``WorkflowRunEvent``，可用 run_id 轮询
+- 同步跑完整张图；每步写 ``WorkflowRunEvent``，可用 run_id 轮询或 SSE 推送
 - 调度：前驱计数 + 就绪队列；fan-out 按出边顺序入队（顺序模拟并行）
 - if-else：只激活选中支路，对未选支路做 skip 传播，以便汇合点正确 join
+- ``iter_run`` 在落库后 yield 事件，供 SSE 边跑边推
 """
 
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Callable, Iterator
 from typing import Any, Literal
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -22,6 +24,7 @@ from flow_forge.core.workflow.providers.stub import StubLlmProvider
 from flow_forge.models import Workflow, WorkflowRun, WorkflowRunEvent
 
 NodeStatus = Literal["pending", "succeeded", "skipped"]
+EventCallback = Callable[[dict[str, Any]], None]
 
 
 class WorkflowRunner:
@@ -35,8 +38,31 @@ class WorkflowRunner:
         self._session_factory = session_factory
         self._llm_provider = llm_provider or StubLlmProvider()
 
-    def run(self, workflow_id: str, inputs: dict[str, Any] | None = None) -> WorkflowRun:
+    def run(
+        self,
+        workflow_id: str,
+        inputs: dict[str, Any] | None = None,
+        *,
+        on_event: EventCallback | None = None,
+    ) -> WorkflowRun:
         """同步执行一次工作流，返回终态 run（succeeded / failed）。"""
+
+        run: WorkflowRun | None = None
+        for message in self.iter_run(workflow_id, inputs):
+            if message.get("type") == "run_finished":
+                run = self.get_run(str(message["run_id"]))
+            elif on_event is not None:
+                on_event(message)
+        if run is None:
+            raise RuntimeError("run did not finish")
+        return run
+
+    def iter_run(
+        self,
+        workflow_id: str,
+        inputs: dict[str, Any] | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        """执行并按序 yield 节点事件，最后 yield ``run_finished``。"""
 
         inputs = inputs or {}
         with self._session_factory() as session:
@@ -54,9 +80,9 @@ class WorkflowRunner:
             session.flush()
 
             try:
-                outputs = self._execute(session, run, graph, inputs)
+                for event in self._execute(session, run, graph, inputs):
+                    yield event
                 run.status = "succeeded"
-                run.outputs = outputs
             except Exception as exc:  # noqa: BLE001 — 节点失败记到 run，不让进程崩
                 run.status = "failed"
                 run.error = str(exc)
@@ -65,7 +91,15 @@ class WorkflowRunner:
             session.commit()
             session.refresh(run)
             session.expunge(run)
-            return run
+            yield {
+                "type": "run_finished",
+                "run_id": run.id,
+                "workflow_id": run.workflow_id,
+                "status": run.status,
+                "inputs": run.inputs,
+                "outputs": run.outputs,
+                "error": run.error,
+            }
 
     def list_events(self, run_id: str) -> list[WorkflowRunEvent]:
         """按 sequence 返回某次运行的全部事件。"""
@@ -97,17 +131,15 @@ class WorkflowRunner:
         run: WorkflowRun,
         graph: WorkflowGraph,
         inputs: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> Iterator[dict[str, Any]]:
         """就绪队列调度：支持线性、if-else 互斥、fan-out/join。"""
 
         nodes = {node.id: node for node in graph.nodes}
         adjacency: dict[str, list[GraphEdge]] = {node.id: [] for node in graph.nodes}
-        predecessors: dict[str, list[str]] = {node.id: [] for node in graph.nodes}
         remaining: dict[str, int] = {node.id: 0 for node in graph.nodes}
 
         for edge in graph.edges:
             adjacency[edge.source].append(edge)
-            predecessors[edge.target].append(edge.source)
             remaining[edge.target] += 1
 
         start_nodes = [node for node in graph.nodes if node.data.type == "start"]
@@ -115,7 +147,6 @@ class WorkflowRunner:
             raise ValueError("graph must contain exactly one start node")
 
         status: dict[str, NodeStatus] = {node.id: "pending" for node in graph.nodes}
-        # 每个节点收到的前驱结局：True=成功，False=skip
         pred_signals: dict[str, list[bool]] = {node.id: [] for node in graph.nodes}
 
         variables: dict[str, Any] = dict(inputs)
@@ -152,7 +183,10 @@ class WorkflowRunner:
             if status[current_id] != "pending":
                 continue
             node = nodes[current_id]
-            sequence = self._append_event(session, run.id, sequence, "node_started", node.id)
+            sequence, started = self._append_event(
+                session, run.id, sequence, "node_started", node.id
+            )
+            yield started
             chosen_handle: str | None = None
 
             try:
@@ -191,7 +225,6 @@ class WorkflowRunner:
                         if "text" in variables:
                             outputs["text"] = variables["text"]
                     else:
-                        # 并行汇合：优先拼 scoped text，避免只剩最后一支的全局 text
                         scoped = {
                             key.removesuffix(".text"): value
                             for key, value in variables.items()
@@ -204,7 +237,7 @@ class WorkflowRunner:
                 else:
                     raise ValueError(f"unsupported node type: {node.data.type}")
             except Exception as exc:
-                self._append_event(
+                sequence, failed = self._append_event(
                     session,
                     run.id,
                     sequence,
@@ -212,10 +245,15 @@ class WorkflowRunner:
                     node.id,
                     {"error": str(exc)},
                 )
+                yield failed
                 raise
 
-            sequence = self._append_event(session, run.id, sequence, "node_succeeded", node.id)
+            sequence, succeeded = self._append_event(
+                session, run.id, sequence, "node_succeeded", node.id
+            )
+            yield succeeded
             status[current_id] = "succeeded"
+            run.outputs = outputs
 
             out_edges = adjacency.get(current_id, [])
             if node.data.type == "if-else":
@@ -229,8 +267,6 @@ class WorkflowRunner:
                 for edge in out_edges:
                     signal(edge.target, succeeded=True)
 
-        return outputs
-
     def _append_event(
         self,
         session: Session,
@@ -239,21 +275,28 @@ class WorkflowRunner:
         event_type: str,
         node_id: str | None,
         payload: dict[str, Any] | None = None,
-    ) -> int:
-        """追加一条有序事件，返回新的 sequence。"""
+    ) -> tuple[int, dict[str, Any]]:
+        """追加一条有序事件，返回新的 sequence 与可推送载荷。"""
 
         next_sequence = sequence + 1
-        session.add(
-            WorkflowRunEvent(
-                run_id=run_id,
-                sequence=next_sequence,
-                event_type=event_type,
-                node_id=node_id,
-                payload=payload,
-            )
+        event = WorkflowRunEvent(
+            run_id=run_id,
+            sequence=next_sequence,
+            event_type=event_type,
+            node_id=node_id,
+            payload=payload,
         )
+        session.add(event)
         session.flush()
-        return next_sequence
+        message = {
+            "type": event_type,
+            "event_type": event_type,
+            "id": event.id,
+            "sequence": next_sequence,
+            "node_id": node_id,
+            "payload": payload,
+        }
+        return next_sequence, message
 
 
 class _SafeDict(dict[str, Any]):

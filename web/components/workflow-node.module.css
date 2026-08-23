@@ -15,6 +15,22 @@
   box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.25);
 }
 
+.running {
+  border-color: #c69026;
+  background: #fff8e8;
+  box-shadow: 0 0 0 2px rgba(198, 144, 38, 0.35);
+}
+
+.succeeded {
+  border-color: #0a7a32;
+  background: #eef8f0;
+}
+
+.failed {
+  border-color: #a1281a;
+  background: #ffe8e6;
+}
+
 .type {
   font-weight: 700;
   color: #1a1a1a;

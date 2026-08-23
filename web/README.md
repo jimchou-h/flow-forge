@@ -44,8 +44,9 @@ pnpm dev
 2. 左侧「添加节点」可加 `template` / `code` / `llm` / `if-else` / `end`
 3. 选中节点后在右侧编辑 `data`（template / code / prompt / condition）
 4. `if-else` 请从右侧 **true / false** 锚点分别连出两条边
-5. 左侧编辑 `inputs` JSON，点「从画布运行」：`POST /workflows` → `POST .../runs` → `GET .../events`
-6. 可选「显示 JSON」查看/粘贴图载荷，并用「从 JSON 加载到画布」显式同步
+5. 左侧编辑 `inputs` JSON，点「从画布运行（SSE）」：`POST /workflows` → `POST .../runs/stream`，边收节点事件边高亮画布（running / succeeded / failed）
+6. 同步 JSON 路径 `POST .../runs` 仍可用（见 `lib/api.ts` 的 `runGraphOnce`），联调页默认走 SSE
+7. 可选「显示 JSON」查看/粘贴图载荷，并用「从 JSON 加载到画布」显式同步
 
 ## 构建检查
 

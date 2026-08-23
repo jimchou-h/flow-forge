@@ -17,7 +17,7 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useMemo, useState } from "react";
 
 import {
-  runGraphOnce,
+  runGraphOnceStream,
   type RunEvent,
   type WorkflowGraph,
   type WorkflowRun,
@@ -141,8 +141,14 @@ function EditorInner() {
     setUiError(null);
     setRun(null);
     setEvents([]);
+    setNodes((current) =>
+      current.map((node) => ({
+        ...node,
+        data: { ...node.data, runStatus: undefined },
+      })),
+    );
 
-    const graph = toWorkflowGraph(nodes as WorkflowFlowNode[], edges);
+    const graph = toWorkflowGraph(nodes, edges);
     setJsonPreview(JSON.stringify(graph, null, 2));
 
     const inputsParsed = parseJson<Record<string, unknown>>(inputsText, "inputs JSON");
@@ -153,7 +159,55 @@ function EditorInner() {
 
     setBusy(true);
     try {
-      const result = await runGraphOnce(graph, inputsParsed.value);
+      const result = await runGraphOnceStream(graph, inputsParsed.value, (message) => {
+        if (message.type === "run_finished") return;
+        const nodeId = "node_id" in message ? message.node_id : null;
+        if (!nodeId) return;
+        if (message.type === "node_started") {
+          setNodes((current) =>
+            current.map((node) => ({
+              ...node,
+              data: {
+                ...node.data,
+                runStatus:
+                  node.id === nodeId
+                    ? "running"
+                    : node.data.runStatus === "running"
+                      ? undefined
+                      : node.data.runStatus,
+              },
+            })),
+          );
+        } else if (message.type === "node_succeeded") {
+          setNodes((current) =>
+            current.map((node) =>
+              node.id === nodeId
+                ? { ...node, data: { ...node.data, runStatus: "succeeded" } }
+                : node,
+            ),
+          );
+        } else if (message.type === "node_failed") {
+          setNodes((current) =>
+            current.map((node) =>
+              node.id === nodeId
+                ? { ...node, data: { ...node.data, runStatus: "failed" } }
+                : node,
+            ),
+          );
+        }
+        if ("sequence" in message && message.sequence != null) {
+          setEvents((current) => [
+            ...current,
+            {
+              id: message.id ?? `seq-${message.sequence}`,
+              sequence: message.sequence!,
+              event_type: message.event_type ?? message.type,
+              node_id: nodeId,
+              payload: message.payload ?? null,
+            },
+          ]);
+        }
+      });
       setRun(result.run);
       setEvents(result.events);
       if (result.run.status === "failed") {
@@ -195,7 +249,7 @@ function EditorInner() {
           />
         </label>
         <button type="button" className={styles.primary} disabled={busy} onClick={onRun}>
-          {busy ? "运行中…" : "从画布运行"}
+          {busy ? "运行中…" : "从画布运行（SSE）"}
         </button>
         <button type="button" className={styles.secondary} onClick={() => setShowJson((v) => !v)}>
           {showJson ? "隐藏 JSON" : "显示 JSON"}

@@ -92,7 +92,127 @@ export async function listRunEvents(runId: string): Promise<RunEvent[]> {
   return body.events ?? [];
 }
 
-/** 一次联调：建图 → 跑 → 拉事件 */
+export type StreamRunMessage =
+  | {
+      type: string;
+      event_type?: string;
+      id?: string;
+      sequence?: number;
+      node_id?: string | null;
+      payload?: Record<string, unknown> | null;
+    }
+  | {
+      type: "run_finished";
+      run_id: string;
+      workflow_id?: string;
+      status: string;
+      inputs?: Record<string, unknown>;
+      outputs: Record<string, unknown> | null;
+      error: string | null;
+    };
+
+/** 解析 SSE 文本流，对每条 data JSON 回调 */
+export async function consumeSse(
+  response: Response,
+  onMessage: (message: StreamRunMessage) => void,
+): Promise<void> {
+  if (!response.body) {
+    throw new Error("响应无 body，无法读取 SSE");
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+    for (const part of parts) {
+      const line = part
+        .split("\n")
+        .map((item) => item.trim())
+        .find((item) => item.startsWith("data:"));
+      if (!line) continue;
+      const payload = line.replace(/^data:\s?/, "");
+      if (!payload) continue;
+      onMessage(JSON.parse(payload) as StreamRunMessage);
+    }
+  }
+}
+
+/** 建图后走 SSE 流式运行 */
+export async function runGraphOnceStream(
+  graph: WorkflowGraph,
+  inputs: Record<string, unknown>,
+  onMessage: (message: StreamRunMessage) => void,
+): Promise<{ run: WorkflowRun; events: RunEvent[] }> {
+  const { id: workflowId } = await createWorkflow(graph);
+  const response = await fetch(`${API_PROXY_PREFIX}/workflows/${workflowId}/runs/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    body: JSON.stringify({ inputs }),
+  });
+  if (!response.ok) {
+    const body = (await readJson(response)) as { error?: string };
+    throw new Error(body?.error ?? `流式运行失败（HTTP ${response.status}）`);
+  }
+
+  const liveEvents: RunEvent[] = [];
+  const finishBox: {
+    value: {
+      run_id: string;
+      workflow_id?: string;
+      status: string;
+      inputs?: Record<string, unknown>;
+      outputs: Record<string, unknown> | null;
+      error: string | null;
+    } | null;
+  } = { value: null };
+
+  await consumeSse(response, (message) => {
+    onMessage(message);
+    if (message.type === "run_finished") {
+      const done = message as {
+        type: "run_finished";
+        run_id: string;
+        workflow_id?: string;
+        status: string;
+        inputs?: Record<string, unknown>;
+        outputs: Record<string, unknown> | null;
+        error: string | null;
+      };
+      finishBox.value = done;
+      return;
+    }
+    if ("sequence" in message && message.sequence != null) {
+      liveEvents.push({
+        id: message.id ?? `seq-${message.sequence}`,
+        sequence: message.sequence,
+        event_type: message.event_type ?? message.type,
+        node_id: message.node_id ?? null,
+        payload: message.payload ?? null,
+      });
+    }
+  });
+
+  const finished = finishBox.value;
+  if (!finished) {
+    throw new Error("SSE 流结束但未收到 run_finished");
+  }
+
+  const run: WorkflowRun = {
+    id: finished.run_id,
+    workflow_id: finished.workflow_id ?? workflowId,
+    status: finished.status,
+    inputs: finished.inputs ?? inputs,
+    outputs: finished.outputs,
+    error: finished.error,
+  };
+  return { run, events: liveEvents };
+}
+
+/** 一次联调：建图 → 跑 → 拉事件（JSON，非 SSE） */
 export async function runGraphOnce(
   graph: WorkflowGraph,
   inputs: Record<string, unknown>,
