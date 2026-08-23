@@ -10,12 +10,13 @@
 | Graph / draft（图定义） | 工作流定义；关键字段与 Dify draft **子集兼容** |
 | Node（节点） | 图上的一步；含 Start / Template / Code / LLM / If-Else / End |
 | Canvas（画布） | Web 上拖拽编排节点与边的视图；导出为 Graph 再交给 Runner |
+| SSE（Server-Sent Events） | 服务端单向推送；本仓用于运行中推送节点事件（仍在同步请求内写出） |
 | LLM 节点 | 用 prompt 模板 + LlmProvider 生成文本；默认 stub，可选 OpenAI 兼容 HTTP |
 | If/Else 节点 | 按条件互斥选择 true/false 出边（对照 Dify If/Else 学习子集；非并行） |
 | Parallel / fan-out / join | 多出边同时调度各支路后在汇合点等待；本仓学习向用**同步顺序**模拟 |
 | Template 节点 | 用上游变量做字符串模板渲染的确定性节点 |
 | Run（运行） | 一次工作流执行实例；有 `run_id` |
-| Event（事件） | 单次运行内的逐步状态记录（节点开始/成功/失败等），供轮询 |
+| Event（事件） | 单次运行内的逐步状态记录（节点开始/成功/失败等），供轮询或 SSE |
 | Runner（执行器） | `WorkflowRunner`：同步执行入口；日后可迁到后台而不改事件模型 |
 | Code 节点 | 在受控环境中执行一小段代码/表达式，读写工作流变量（对照 Dify Code 节点的学习子集） |
 | Controller / Service / Core | HTTP 解析 → 编排 → 领域执行（对齐 Dify 命名子集） |
@@ -23,14 +24,14 @@
 ## 近期非目标
 
 - 多租户 / 账号体系
-- Celery / 生产级异步队列（先轮询，再 SSE）
+- Celery / 生产级异步队列（SSE 仍跑在请求线程内）
 - 以 REPL Agent 为主线的另一类产品形态
-- 真多线程并行、完整 Dify 画布对等（本阶段只要最小拖拽）
+- 真多线程并行、完整 Dify 画布对等
 
 ## 技术栈（已锁定）
 
 - `api/`：Python、Flask（薄 Blueprint + Pydantic）、uv、SQLite、SQLAlchemy
-- `web/`：Next.js 联调台（App Router；`/api-proxy` rewrite 到本地 Flask）
+- `web/`：Next.js 联调台（App Router；画布 + `/api-proxy`）
 - 流程：OpenSpec + GitHub Issues + 竖切 TDD（unified-dev-workflow）
 - 已归档：`openspec/changes/archive/2026-08-21-bootstrap`（API 探活骨架）
 - 已归档：`openspec/changes/archive/2026-08-21-graph-runner`（最小图执行 + run/events HTTP）
@@ -39,4 +40,5 @@
 - 已归档：`openspec/changes/archive/2026-08-23-llm-node`（LLM 节点：prompt + Stub/OpenAI Provider）
 - 已归档：`openspec/changes/archive/2026-08-23-if-else-node`（If/Else 互斥分支）
 - 已归档：`openspec/changes/archive/2026-08-23-parallel-branch`（fan-out / join）
-- 进行中：`openspec/changes/minimal-canvas`（最小拖拽画布）
+- 已归档：`openspec/changes/archive/2026-08-23-minimal-canvas`（最小拖拽画布）
+- 进行中：`openspec/changes/run-sse`（运行 SSE 推送节点事件）
