@@ -53,3 +53,26 @@ export const SAMPLE_LLM_GRAPH: WorkflowGraph = {
 };
 
 export const SAMPLE_LLM_INPUTS = { name: "Forge" };
+
+/** start → if-else → (true|false) template → end */
+export const SAMPLE_IF_ELSE_GRAPH: WorkflowGraph = {
+  nodes: [
+    { id: "start_1", data: { type: "start" } },
+    {
+      id: "if_1",
+      data: { type: "if-else", condition: "result = score >= 60" },
+    },
+    { id: "tpl_true", data: { type: "template", template: "pass" } },
+    { id: "tpl_false", data: { type: "template", template: "fail" } },
+    { id: "end_1", data: { type: "end" } },
+  ],
+  edges: [
+    { id: "e0", source: "start_1", target: "if_1" },
+    { id: "e1", source: "if_1", target: "tpl_true", source_handle: "true" },
+    { id: "e2", source: "if_1", target: "tpl_false", source_handle: "false" },
+    { id: "e3", source: "tpl_true", target: "end_1" },
+    { id: "e4", source: "tpl_false", target: "end_1" },
+  ],
+};
+
+export const SAMPLE_IF_ELSE_INPUTS = { score: 80 };

@@ -7,7 +7,7 @@ import pytest
 from flow_forge.app import create_app
 from flow_forge.core.workflow.runner import WorkflowRunner
 from flow_forge.services.workflow_service import WorkflowService
-from sample_data import sample_code_graph, sample_graph, sample_llm_graph
+from sample_data import sample_code_graph, sample_graph, sample_if_else_graph, sample_llm_graph
 
 
 @pytest.fixture
@@ -110,5 +110,46 @@ def test_runner_llm_provider_error_fails(session_factory) -> None:
 
     assert run.status == "failed"
     assert "provider failed" in (run.error or "")
+    events = runner.list_events(run.id)
+    assert any(event.event_type == "node_failed" for event in events)
+
+
+def test_runner_if_else_true_branch(session_factory) -> None:
+    service = WorkflowService(session_factory)
+    workflow = service.create(sample_if_else_graph())
+    runner = WorkflowRunner(session_factory)
+
+    run = runner.run(workflow.id, inputs={"score": 80})
+
+    assert run.status == "succeeded"
+    assert run.outputs == {"text": "pass"}
+    node_ids = [e.node_id for e in runner.list_events(run.id) if e.event_type == "node_succeeded"]
+    assert "tpl_true" in node_ids
+    assert "tpl_false" not in node_ids
+
+
+def test_runner_if_else_false_branch(session_factory) -> None:
+    service = WorkflowService(session_factory)
+    workflow = service.create(sample_if_else_graph())
+    runner = WorkflowRunner(session_factory)
+
+    run = runner.run(workflow.id, inputs={"score": 40})
+
+    assert run.status == "succeeded"
+    assert run.outputs == {"text": "fail"}
+    node_ids = [e.node_id for e in runner.list_events(run.id) if e.event_type == "node_succeeded"]
+    assert "tpl_false" in node_ids
+    assert "tpl_true" not in node_ids
+
+
+def test_runner_if_else_non_bool_fails(session_factory) -> None:
+    service = WorkflowService(session_factory)
+    workflow = service.create(sample_if_else_graph(condition="result = 1"))
+    runner = WorkflowRunner(session_factory)
+
+    run = runner.run(workflow.id, inputs={"score": 1})
+
+    assert run.status == "failed"
+    assert run.error
     events = runner.list_events(run.id)
     assert any(event.event_type == "node_failed" for event in events)

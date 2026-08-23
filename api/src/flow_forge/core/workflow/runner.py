@@ -12,8 +12,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from flow_forge.core.workflow.graph import WorkflowGraph, validate_workflow_graph
+from flow_forge.core.workflow.graph import GraphEdge, WorkflowGraph, validate_workflow_graph
 from flow_forge.core.workflow.nodes.code import execute_code
+from flow_forge.core.workflow.nodes.if_else import evaluate_condition
 from flow_forge.core.workflow.nodes.llm import execute_llm
 from flow_forge.core.workflow.providers.base import LlmProvider
 from flow_forge.core.workflow.providers.stub import StubLlmProvider
@@ -99,10 +100,10 @@ class WorkflowRunner:
         """从唯一的 start 出发，沿单后继边走到没有出边为止。"""
 
         nodes = {node.id: node for node in graph.nodes}
-        # adjacency[source] = [target, ...]；本阶段每个节点最多一个后继
-        adjacency: dict[str, list[str]] = {node.id: [] for node in graph.nodes}
+        # adjacency[source] = 出边列表（if-else 靠 source_handle 互斥选一）
+        adjacency: dict[str, list[GraphEdge]] = {node.id: [] for node in graph.nodes}
         for edge in graph.edges:
-            adjacency[edge.source].append(edge.target)
+            adjacency[edge.source].append(edge)
 
         start_nodes = [node for node in graph.nodes if node.data.type == "start"]
         if len(start_nodes) != 1:
@@ -113,6 +114,7 @@ class WorkflowRunner:
         sequence = 0
         current_id = start_nodes[0].id
         visited: set[str] = set()
+        chosen_handle: str | None = None
 
         while current_id:
             if current_id in visited:
@@ -120,6 +122,7 @@ class WorkflowRunner:
             visited.add(current_id)
             node = nodes[current_id]
             sequence = self._append_event(session, run.id, sequence, "node_started", node.id)
+            chosen_handle = None
 
             try:
                 if node.data.type == "start":
@@ -148,6 +151,11 @@ class WorkflowRunner:
                     variables[f"{node.id}.text"] = llm_text
                     variables["text"] = llm_text
                     outputs = {"text": llm_text}
+                elif node.data.type == "if-else":
+                    assert node.data.condition is not None
+                    branch = evaluate_condition(node.data.condition, variables)
+                    chosen_handle = "true" if branch else "false"
+                    variables[f"{node.id}.branch"] = chosen_handle
                 elif node.data.type == "end":
                     if "result" in variables:
                         outputs = {"result": variables["result"]}
@@ -169,12 +177,21 @@ class WorkflowRunner:
                 raise
 
             sequence = self._append_event(session, run.id, sequence, "node_succeeded", node.id)
-            next_ids = adjacency.get(current_id, [])
-            if not next_ids:
+            out_edges = adjacency.get(current_id, [])
+            if not out_edges:
                 break
-            if len(next_ids) > 1:
-                raise ValueError("parallel edges are not supported in this slice")
-            current_id = next_ids[0]
+            if node.data.type == "if-else":
+                assert chosen_handle is not None
+                matches = [edge for edge in out_edges if edge.source_handle == chosen_handle]
+                if len(matches) != 1:
+                    raise ValueError(
+                        f"if-else node {node.id} missing out-edge for handle {chosen_handle}"
+                    )
+                current_id = matches[0].target
+            else:
+                if len(out_edges) > 1:
+                    raise ValueError("parallel edges are not supported in this slice")
+                current_id = out_edges[0].target
 
         return outputs
 

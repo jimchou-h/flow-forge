@@ -5,8 +5,9 @@ from pydantic import ValidationError
 
 from flow_forge.core.workflow.graph import validate_workflow_graph
 from flow_forge.core.workflow.nodes.code import MAX_CODE_LENGTH
+from flow_forge.core.workflow.nodes.if_else import MAX_CONDITION_LENGTH
 from flow_forge.core.workflow.nodes.llm import MAX_PROMPT_LENGTH
-from sample_data import sample_code_graph, sample_graph, sample_llm_graph
+from sample_data import sample_code_graph, sample_graph, sample_if_else_graph, sample_llm_graph
 
 
 def test_valid_start_template_end_graph_parses() -> None:
@@ -25,6 +26,39 @@ def test_valid_llm_graph_parses() -> None:
     graph = validate_workflow_graph(sample_llm_graph())
     assert len(graph.nodes) == 3
     assert graph.nodes[1].data.type == "llm"
+
+
+def test_valid_if_else_graph_parses() -> None:
+    graph = validate_workflow_graph(sample_if_else_graph())
+    assert any(node.data.type == "if-else" for node in graph.nodes)
+    handles = {
+        edge.source_handle
+        for edge in graph.edges
+        if edge.source == "if_1"
+    }
+    assert handles == {"true", "false"}
+
+
+def test_if_else_missing_condition_is_rejected() -> None:
+    payload = sample_if_else_graph()
+    del payload["nodes"][1]["data"]["condition"]
+    with pytest.raises(ValidationError):
+        validate_workflow_graph(payload)
+
+
+def test_if_else_condition_too_long_is_rejected() -> None:
+    payload = sample_if_else_graph(condition="result = True\n" + ("# x\n" * MAX_CONDITION_LENGTH))
+    with pytest.raises(ValidationError):
+        validate_workflow_graph(payload)
+
+
+def test_if_else_missing_false_edge_is_rejected() -> None:
+    payload = sample_if_else_graph()
+    payload["edges"] = [
+        edge for edge in payload["edges"] if edge.get("source_handle") != "false"
+    ]
+    with pytest.raises(ValidationError):
+        validate_workflow_graph(payload)
 
 
 def test_llm_node_missing_prompt_is_rejected() -> None:

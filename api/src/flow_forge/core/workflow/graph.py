@@ -1,8 +1,8 @@
 """工作流图结构（对照 Dify draft 的字段子集）。
 
 约定：
-- 节点用 ``id`` + ``data.type`` 区分类型（start / template / code / llm / end）
-- 边用 ``source`` / ``target`` 指向节点 id
+- 节点用 ``id`` + ``data.type`` 区分类型（start / template / code / llm / if-else / end）
+- 边用 ``source`` / ``target``；if-else 出边用 ``source_handle``（true/false）
 不追求能直接导入完整 Dify 导出文件，只锁本仓用到的字段。
 """
 
@@ -13,10 +13,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from flow_forge.core.workflow.nodes.code import validate_code_source
+from flow_forge.core.workflow.nodes.if_else import validate_condition_source
 from flow_forge.core.workflow.nodes.llm import validate_llm_prompt
 
 # 本阶段允许的节点类型
-SupportedNodeType = Literal["start", "template", "code", "llm", "end"]
+SupportedNodeType = Literal["start", "template", "code", "llm", "if-else", "end"]
+SourceHandle = Literal["true", "false"]
 
 
 class NodeData(BaseModel):
@@ -26,6 +28,7 @@ class NodeData(BaseModel):
     template: str | None = None
     code: str | None = None
     prompt: str | None = None
+    condition: str | None = None
 
     @model_validator(mode="after")
     def required_fields_for_node_type(self) -> NodeData:
@@ -35,6 +38,8 @@ class NodeData(BaseModel):
             validate_code_source(self.code or "")
         if self.type == "llm":
             validate_llm_prompt(self.prompt)
+        if self.type == "if-else":
+            validate_condition_source(self.condition)
         return self
 
 
@@ -46,11 +51,12 @@ class GraphNode(BaseModel):
 
 
 class GraphEdge(BaseModel):
-    """连接两个节点的有向边；并行出边本阶段不支持。"""
+    """有向边；if-else 出边用 source_handle 区分真/假支。"""
 
     id: str | None = None
     source: str
     target: str
+    source_handle: SourceHandle | None = None
 
 
 class WorkflowGraph(BaseModel):
@@ -73,6 +79,19 @@ class WorkflowGraph(BaseModel):
         for edge in self.edges:
             if edge.source not in node_ids or edge.target not in node_ids:
                 raise ValueError("edge endpoints must reference existing nodes")
+        return self
+
+    @model_validator(mode="after")
+    def if_else_out_edges_are_paired(self) -> WorkflowGraph:
+        for node in self.nodes:
+            if node.data.type != "if-else":
+                continue
+            outs = [edge for edge in self.edges if edge.source == node.id]
+            handles = {edge.source_handle for edge in outs}
+            if len(outs) != 2 or handles != {"true", "false"}:
+                raise ValueError(
+                    f"if-else node {node.id} must have exactly true and false out-edges"
+                )
         return self
 
 

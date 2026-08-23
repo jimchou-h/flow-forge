@@ -5,9 +5,20 @@ export const API_PROXY_PREFIX = "/api-proxy";
 export type WorkflowGraph = {
   nodes: Array<{
     id: string;
-    data: { type: string; template?: string; code?: string; prompt?: string };
+    data: {
+      type: string;
+      template?: string;
+      code?: string;
+      prompt?: string;
+      condition?: string;
+    };
   }>;
-  edges: Array<{ id?: string; source: string; target: string }>;
+  edges: Array<{
+    id?: string;
+    source: string;
+    target: string;
+    source_handle?: "true" | "false";
+  }>;
 };
 
 export type RunEvent = {
