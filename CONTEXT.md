@@ -8,9 +8,10 @@
 |------|------|
 | Workflow（工作流） | 由节点与边组成的可执行图；本仓北星 |
 | Graph / draft（图定义） | 工作流定义；关键字段与 Dify draft **子集兼容** |
-| Node（节点） | 图上的一步；含 Start / Template / Code / LLM / If-Else / End |
+| Node（节点） | 图上的一步；含 Start / Template / Code / LLM / If-Else / HTTP Request / End |
 | Canvas（画布） | Web 上拖拽编排节点与边的视图；导出为 Graph 再交给 Runner |
 | SSE（Server-Sent Events） | 服务端单向推送；本仓用于运行中推送节点事件（仍在同步请求内写出） |
+| HTTP Request 节点 | 按 method/url（及可选 headers/body）出站调用；默认可 stub，可选真实 httpx |
 | LLM 节点 | 用 prompt 模板 + LlmProvider 生成文本；默认 stub，可选 OpenAI 兼容 HTTP |
 | If/Else 节点 | 按条件互斥选择 true/false 出边（对照 Dify If/Else 学习子集；非并行） |
 | Parallel / fan-out / join | 多出边同时调度各支路后在汇合点等待；本仓学习向用**同步顺序**模拟 |
@@ -41,4 +42,5 @@
 - 已归档：`openspec/changes/archive/2026-08-23-if-else-node`（If/Else 互斥分支）
 - 已归档：`openspec/changes/archive/2026-08-23-parallel-branch`（fan-out / join）
 - 已归档：`openspec/changes/archive/2026-08-23-minimal-canvas`（最小拖拽画布）
-- 进行中：`openspec/changes/run-sse`（运行 SSE 推送节点事件）
+- 已归档：`openspec/changes/archive/2026-08-24-run-sse`（运行 SSE 推送节点事件）
+- 进行中：`openspec/changes/http-request-node`（HTTP 请求节点）

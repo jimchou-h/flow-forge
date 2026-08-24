@@ -2,9 +2,7 @@
 
 ## Purpose
 约定 Flow Forge 最小拖拽画布：可视化编辑工作流图并导出为现有 API 图载荷后运行，对照 Dify 画布的学习向子集。
-
 ## Requirements
-
 ### Requirement: 画布展示与拖拽
 联调页 SHALL 提供基于节点-边的可视化画布；用户 MUST 能拖拽移动节点，并 MUST 能通过拖拽创建边。
 
@@ -25,3 +23,11 @@
 #### Scenario: 画布编排后跑通
 - **WHEN** 用户在画布上保留合法 start→template→end（或等价合法图）并提供所需 inputs 后点击运行
 - **THEN** 页面 MUST 展示成功的 run 状态与 outputs（或失败时的 error / 失败事件）
+
+### Requirement: 画布运行可走 SSE
+联调页 SHALL 支持通过 SSE 流式运行当前画布图，并 MUST 根据事件更新节点可视化状态（至少区分运行中 / 成功 / 失败）。
+
+#### Scenario: 运行中高亮节点
+- **WHEN** 用户从画布发起流式运行
+- **THEN** 在收到某节点 `node_started`（或等价）时，该节点 MUST 呈现可区分的运行中样式，直至成功或失败事件
+
